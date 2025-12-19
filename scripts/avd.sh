@@ -32,17 +32,17 @@ case $(uname -m) in
 esac
 
 cleanup() {
+  pkill -INT -P $$
+  wait
+  trap - EXIT
   rm -f magisk_*.img
   "$avd" delete avd -n test
+  exit 1
 }
 
 test_error() {
-  trap - EXIT
   print_error "! An error occurred"
-  pkill -INT -P $$
-  wait
   cleanup
-  exit 1
 }
 
 wait_for_boot() {
@@ -72,14 +72,13 @@ wait_emu() {
 
 dump_vars() {
   local val
-  for name in $@ emu_args; do
+  for name in $@; do
     eval val=\$$name
     echo $name=\"$val\"\;
   done
 }
 
 resolve_vars() {
-  set +x
   local arg_list="$1"
   local ver=$2
   local type=$3
@@ -139,14 +138,8 @@ dl_emu() {
 
 setup_emu() {
   local avd_pkg=$1
-  local ver=$2
   dl_emu $avd_pkg
   echo no | "$avd" create avd -f -n test -k $avd_pkg
-
-  # avdmanager is outdated, it might not set the proper target
-  local ini=$ANDROID_AVD_HOME/test.ini
-  sed "s:^target\s*=.*:target=android-$ver:g" $ini > $ini.new
-  mv $ini.new $ini
 }
 
 test_emu() {
@@ -176,15 +169,16 @@ test_emu() {
 }
 
 test_main() {
-  local ver avd_pkg ramdisk
-  eval $(resolve_vars "ver avd_pkg ramdisk" $1 $2)
+  local avd_pkg ramdisk vars
+  vars=$(resolve_vars "emu_args avd_pkg ramdisk" $1 $2)
+  eval $vars
 
   # Specify an explicit port so that tests can run with other emulators running at the same time
   local emu_port=5682
   emu_args="$emu_args -port $emu_port"
   export ANDROID_SERIAL="emulator-$emu_port"
 
-  setup_emu "$avd_pkg" $ver
+  setup_emu "$avd_pkg"
 
   # Restart ADB daemon just in case
   adb kill-server
@@ -217,21 +211,24 @@ test_main() {
     test_emu release
   fi
 
-  cleanup
+  # Cleanup
+  rm -f magisk_*.img
+  "$avd" delete avd -n test
 }
 
 run_main() {
-  local ver avd_pkg
-  eval $(resolve_vars "ver avd_pkg" $1 $2)
-  setup_emu "$avd_pkg" $ver
+  local avd_pkg vars
+  vars=$(resolve_vars "emu_args avd_pkg" $1 $2)
+  eval $vars
+  setup_emu "$avd_pkg"
   print_title "* Launching $avd_pkg"
   "$emu" @test $emu_args 2>/dev/null
-  cleanup
 }
 
 dl_main() {
-  local avd_pkg
-  eval $(resolve_vars "avd_pkg" $1 $2)
+  local avd_pkg vars
+  vars=$(resolve_vars "avd_pkg" $1 $2)
+  eval $vars
   print_title "* Downloading $avd_pkg"
   dl_emu "$avd_pkg"
 }
