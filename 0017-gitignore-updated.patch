@@ -1,0 +1,24 @@
+From d442a31abf3febd6b8bdb2402e058b0318af2e33 Mon Sep 17 00:00:00 2001
+From: mistrmochov <matejdvoracek@fastmail.com>
+Date: Fri, 8 Aug 2025 21:59:09 +0200
+Subject: [PATCH 17/21] gitignore updated
+
+---
+ .gitignore | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/.gitignore b/.gitignore
+index 4cadb490f..24288ca06 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -6,6 +6,7 @@ out
+ *.log
+ /config.prop
+ /notes.md
++/build.sh
+ native/src/core/.vscode
+ 
+ # Built binaries
+-- 
+2.52.0
+

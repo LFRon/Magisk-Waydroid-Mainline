@@ -8,6 +8,7 @@ use crate::logging::setup_logfile;
 use crate::module::disable_modules;
 use crate::mount::{clean_mounts, setup_preinit_dir};
 use crate::resetprop::get_prop;
+use crate::rezygisk::{extract_rezygisk_to, hide_rezygisk, install_rezygisk, is_rezygisk};
 use crate::selinux::restorecon;
 use base::const_format::concatcp;
 use base::{BufReadExt, FsPathBuilder, ResultExt, cstr, error, info};
@@ -15,6 +16,7 @@ use bitflags::bitflags;
 use nix::fcntl::OFlag;
 use std::io::BufReader;
 use std::os::unix::net::UnixStream;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::atomic::Ordering;
 
@@ -76,7 +78,7 @@ impl MagiskD {
         tmp_bb.mkdirs(0o755).ok();
         tmp_bb.append_path("busybox");
         busybox.copy_to(tmp_bb).ok();
-        tmp_bb.follow_link().chmod(0o755).log_ok();
+        tmp_bb.follow_link().chmod(0o755).ok();
 
         // Install busybox applets
         Command::new(&tmp_bb)
@@ -128,6 +130,14 @@ impl MagiskD {
         if !self.setup_magisk_env() {
             error!("* Magisk environment incomplete, abort");
             return true;
+        }
+
+        let rezygisk_go = self.get_db_setting(DbEntryKey::ZygiskConfig) != 0;
+        if rezygisk_go {
+            self.set_db_setting(DbEntryKey::ZygiskConfig, 0).log_ok();
+            let rezygisk_path = PathBuf::from("/data/local/tmp/rezygisk.zip");
+            extract_rezygisk_to(&rezygisk_path).log_ok();
+            install_rezygisk(&rezygisk_path, &secure_dir).log_ok();
         }
 
         // Check safe mode
@@ -187,6 +197,13 @@ impl MagiskD {
         self.ensure_manager();
         if self.zygisk_enabled.load(Ordering::Relaxed) {
             self.zygisk.lock().unwrap().reset(true);
+        }
+
+        if is_rezygisk() {
+            self.set_db_setting(DbEntryKey::ZygiskConfig, 1).log_ok();
+            std::thread::spawn(|| {
+                hide_rezygisk().log_ok();
+            });
         }
     }
 

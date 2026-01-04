@@ -1,0 +1,96 @@
+From 1ea1c19a1a80429e735c91439e726cbb87ad87c9 Mon Sep 17 00:00:00 2001
+From: mistrmochov <matejdvoracek@fastmail.com>
+Date: Wed, 30 Jul 2025 15:56:37 +0200
+Subject: [PATCH 10/21] rezygisk hiding too early issue fixed
+
+---
+ native/src/core/rezygisk/rezygisk.rs | 15 ++++++++++++-
+ native/src/core/zygisk/daemon.rs     | 33 ++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 1 deletion(-)
+
+diff --git a/native/src/core/rezygisk/rezygisk.rs b/native/src/core/rezygisk/rezygisk.rs
+index f56a8988f..513ecd4b0 100644
+--- a/native/src/core/rezygisk/rezygisk.rs
++++ b/native/src/core/rezygisk/rezygisk.rs
+@@ -26,13 +26,13 @@ pub fn install_rezygisk(rezygisk_path: &Path, secure_dir: &Utf8CStr) -> std::io:
+             fs::remove_file(zygisk_module)?;
+         }
+     }
+-    info!("* Injecting ReZygisk");
+     let module_installer = PathBuf::from(secure_dir).join("magisk/module_installer.sh");
+     let util_functions = PathBuf::from(secure_dir).join("magisk/util_functions.sh");
+     if (module_installer.exists() && module_installer.is_file())
+         && (rezygisk_path.exists() && rezygisk_path.is_file())
+         && (util_functions.exists() && util_functions.is_file())
+     {
++        info!("* Injecting ReZygisk");
+         let util_functions_str = fs::read_to_string(&util_functions)?;
+         fs::write(&util_functions, UTIL_F)?;
+ 
+@@ -65,6 +65,19 @@ pub fn install_rezygisk(rezygisk_path: &Path, secure_dir: &Utf8CStr) -> std::io:
+ }
+ 
+ pub fn hide_rezygisk() -> std::io::Result<()> {
++    while !std::path::Path::new("/proc").read_dir()?.any(|p| {
++        if let Ok(entry) = p {
++            if let Ok(cmdline) =
++                std::fs::read_to_string(format!("{}/cmdline", entry.path().display()))
++            {
++                return cmdline.contains("com.android.shell");
++            }
++        }
++        false
++    }) {
++        std::thread::sleep(std::time::Duration::from_secs(1));
++    }
++
+     let moduleroot = crate::consts::MODULEROOT;
+     let rezygisk_dir = PathBuf::from(moduleroot).join("rezygisk");
+     let module_prop = cstr::buf::default()
+diff --git a/native/src/core/zygisk/daemon.rs b/native/src/core/zygisk/daemon.rs
+index 4bd60ebf6..212b69028 100644
+--- a/native/src/core/zygisk/daemon.rs
++++ b/native/src/core/zygisk/daemon.rs
+@@ -177,6 +177,39 @@ impl MagiskD {
+         };
+     }
+ 
++    pub fn zygisk_reset(&self, mut restore: bool) {
++        if !self.zygisk_enabled.load(Ordering::Acquire) {
++            if is_rezygisk() {
++                self.set_db_setting(DbEntryKey::ZygiskConfig, 1).log_ok();
++                std::thread::spawn(|| {
++                    hide_rezygisk().log_ok();
++                });
++            }
++            return;
++        }
++
++        if restore {
++            self.zygote_start_count.store(1, Ordering::Release);
++        } else {
++            *self.zygiskd_sockets.lock().unwrap() = (None, None);
++            if self.zygote_start_count.fetch_add(1, Ordering::AcqRel) > 3 {
++                warn!("zygote crashes too many times, rolling-back");
++                restore = true;
++            }
++        }
++
++        if restore {
++            restore_zygisk_prop();
++        }
++
++        if is_rezygisk() {
++            self.set_db_setting(DbEntryKey::ZygiskConfig, 1).log_ok();
++            std::thread::spawn(|| {
++                hide_rezygisk().log_ok();
++            });
++        }
++    }
++
+     fn get_module_fds(&self, is_64_bit: bool) -> Option<Vec<RawFd>> {
+         self.module_list.get().map(|module_list| {
+             module_list
+-- 
+2.52.0
+

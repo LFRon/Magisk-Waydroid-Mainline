@@ -1,0 +1,28 @@
+From fcfc0774fab823a80685ac2de2643eec03309b80 Mon Sep 17 00:00:00 2001
+From: mistrmochov <matejdvoracek@fastmail.com>
+Date: Mon, 28 Jul 2025 00:47:19 +0200
+Subject: [PATCH 09/21] final waydroid patches (hopefully)
+
+---
+ native/src/base/files.rs | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/native/src/base/files.rs b/native/src/base/files.rs
+index f3f8fb5ef..f1e0a5d91 100644
+--- a/native/src/base/files.rs
++++ b/native/src/base/files.rs
+@@ -353,9 +353,9 @@ impl Utf8CStr {
+                 con.as_ptr().cast(),
+                 con.len() + 1,
+                 0,
+-            )
+-            .check_os_err("lsetxattr", Some(self), Some(con))
++            );
+         }
++        Ok(())
+     }
+ 
+     pub fn parent_dir(&self) -> Option<&str> {
+-- 
+2.52.0
+

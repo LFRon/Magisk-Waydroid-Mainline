@@ -1,10 +1,13 @@
 out
 *.zip
+!/native/src/core/rezygisk/rezygisk.zip
 *.jks
 *.apk
 *.log
 /config.prop
 /notes.md
+/build.sh
+native/src/core/.vscode
 
 # Built binaries
 native/out

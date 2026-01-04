@@ -1,0 +1,70 @@
+From 8e8c5332dc1adb07727ecf068d5241d0d2c0143e Mon Sep 17 00:00:00 2001
+From: mistrmochov <matejdvoracek@fastmail.com>
+Date: Sat, 26 Jul 2025 23:39:27 +0200
+Subject: [PATCH 07/21] fixing version and fetching issues
+
+---
+ .../com/topjohnwu/magisk/core/data/RetrofitInterfaces.kt  | 8 ++++----
+ .../topjohnwu/magisk/core/repository/NetworkService.kt    | 2 +-
+ stable.json                                               | 4 ++--
+ 3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/app/core/src/main/java/com/topjohnwu/magisk/core/data/RetrofitInterfaces.kt b/app/core/src/main/java/com/topjohnwu/magisk/core/data/RetrofitInterfaces.kt
+index beabc58ba..293d6e804 100644
+--- a/app/core/src/main/java/com/topjohnwu/magisk/core/data/RetrofitInterfaces.kt
++++ b/app/core/src/main/java/com/topjohnwu/magisk/core/data/RetrofitInterfaces.kt
+@@ -33,8 +33,8 @@ interface GithubApiServices {
+     @GET("/repos/{owner}/{repo}/releases")
+     @Headers("Accept: application/vnd.github+json")
+     suspend fun fetchReleases(
+-        @Path("owner") owner: String = "topjohnwu",
+-        @Path("repo") repo: String = "Magisk",
++        @Path("owner") owner: String = "mistrmochov",
++        @Path("repo") repo: String = "MagiskForWaydroid",
+         @Query("per_page") per: Int = 10,
+         @Query("page") page: Int = 1,
+     ): Response<MutableList<Release>>
+@@ -42,7 +42,7 @@ interface GithubApiServices {
+     @GET("/repos/{owner}/{repo}/releases/latest")
+     @Headers("Accept: application/vnd.github+json")
+     suspend fun fetchLatestRelease(
+-        @Path("owner") owner: String = "topjohnwu",
+-        @Path("repo") repo: String = "Magisk",
++        @Path("owner") owner: String = "mistrmochov",
++        @Path("repo") repo: String = "MagiskForWaydroid",
+     ): Release
+ }
+diff --git a/app/core/src/main/java/com/topjohnwu/magisk/core/repository/NetworkService.kt b/app/core/src/main/java/com/topjohnwu/magisk/core/repository/NetworkService.kt
+index 54f9809a5..0748ee1f6 100644
+--- a/app/core/src/main/java/com/topjohnwu/magisk/core/repository/NetworkService.kt
++++ b/app/core/src/main/java/com/topjohnwu/magisk/core/repository/NetworkService.kt
+@@ -73,7 +73,7 @@ class NetworkService(
+     }
+ 
+     private inline fun Release.asPublicInfo(selector: (ReleaseAssets) -> Boolean): UpdateInfo {
+-        val version = tag.drop(1)
++        val version = tag.drop(1) + "-Waydroid"
+         val date = dateFormat.format(createdTime)
+         return UpdateInfo(
+             version = version,
+diff --git a/stable.json b/stable.json
+index eb53c2993..3cd0d778e 100644
+--- a/stable.json
++++ b/stable.json
+@@ -2,11 +2,11 @@
+   "magisk": {
+     "version": "30.1-Waydroid",
+     "versionCode": "30100",
+-    "link": "https://github.com/mistrmochov/MagiskForWaydroid/releases/download/v30.1-Waydroid/app-release.apk",
++    "link": "https://github.com/mistrmochov/MagiskForWaydroid/releases/download/v30.1/app-release.apk",
+     "note": "https://github.com/topjohnwu/Magisk/releases/download/v30.1/notes.md"
+   },
+   "stub": {
+     "versionCode": "40",
+-    "link": "https://github.com/mistrmochov/MagiskForWaydroid/releases/download/v30.1-Waydroid/stub-release.apk"
++    "link": "https://github.com/mistrmochov/MagiskForWaydroid/releases/download/v30.1/stub-release.apk"
+   }
+ }
+-- 
+2.52.0
+

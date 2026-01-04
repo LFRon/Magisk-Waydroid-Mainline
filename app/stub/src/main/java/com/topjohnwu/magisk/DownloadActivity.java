@@ -27,6 +27,8 @@ import com.topjohnwu.magisk.net.Networking;
 import com.topjohnwu.magisk.net.Request;
 import com.topjohnwu.magisk.utils.APKInstall;
 
+import org.json.JSONException;
+
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -46,8 +48,11 @@ import javax.crypto.spec.SecretKeySpec;
 public class DownloadActivity extends Activity {
 
     private static final String APP_NAME = "Magisk";
+    private static final String JSON_URL = "https://raw.githubusercontent.com/mistrmochov/MagiskForWaydroid/refs/heads/master/stable.json";
 
+    private String apkLink = BuildConfig.APK_URL;
     private Context themed;
+    private ProgressDialog dialog;
     private boolean dynLoad;
 
     @Override
@@ -68,7 +73,7 @@ public class DownloadActivity extends Activity {
         ProviderInstaller.install(this);
 
         if (Networking.checkNetworkStatus(this)) {
-            showDialog();
+            fetchStable();
         } else {
             new AlertDialog.Builder(themed)
                     .setCancelable(false)
@@ -104,10 +109,23 @@ public class DownloadActivity extends Activity {
                 .show();
     }
 
+    private void fetchStable() {
+        dialog = ProgressDialog.show(themed, "", "", true);
+        request(JSON_URL).getAsJSONObject(json -> {
+            dialog.dismiss();
+            try {
+                apkLink = json.getJSONObject("magisk").getString("link");
+                showDialog();
+            } catch (JSONException e) {
+                error(e);
+            }
+        });
+    }
+
     private void dlAPK() {
         ProgressDialog.show(themed, getString(dling), getString(dling) + " " + APP_NAME, true);
         // Download and upgrade the app
-        var request = request(BuildConfig.APK_URL).setExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        var request = request(apkLink).setExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         if (dynLoad) {
             request.getAsFile(StubApk.current(this), file -> StubApk.restartProcess(this));
         } else {
