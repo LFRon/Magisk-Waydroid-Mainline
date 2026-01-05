@@ -34,8 +34,6 @@ mod module;
 mod mount;
 mod package;
 mod resetprop;
-#[path = "rezygisk/rezygisk.rs"]
-mod rezygisk;
 mod selinux;
 mod socket;
 mod su;
