@@ -76,7 +76,7 @@ impl MagiskD {
         tmp_bb.mkdirs(0o755).ok();
         tmp_bb.append_path("busybox");
         busybox.copy_to(tmp_bb).ok();
-        tmp_bb.follow_link().chmod(0o755).ok();
+        tmp_bb.follow_link().chmod(0o755).log_ok();
 
         // Install busybox applets
         Command::new(&tmp_bb)

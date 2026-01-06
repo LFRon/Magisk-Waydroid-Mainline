@@ -6,7 +6,6 @@
 #include <string_view>
 #include <bitset>
 #include <rust/cxx.h>
-
 #include "xwrap.hpp"
 
 #define DISALLOW_COPY_AND_MOVE(clazz) \
