@@ -27,12 +27,13 @@ use nix::sys::signal::SigSet;
 use nix::unistd::{dup2_stderr, dup2_stdin, dup2_stdout, getpid, getuid, setsid};
 use num_traits::AsPrimitive;
 use std::fmt::Write as _;
-use std::io::{BufReader, Read, Write};
+use std::io::{BufReader, Write};
 use std::os::fd::{AsFd, AsRawFd, IntoRawFd, RawFd};
 use std::os::unix::net::{UCred, UnixListener, UnixStream};
 use std::process::{Command, exit};
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Mutex, OnceLock};
+use std::sync::nonpoison::Mutex;
 use std::time::Duration;
 
 // Global magiskd singleton
@@ -105,7 +106,7 @@ impl MagiskD {
                 denylist_handler(-1);
 
                 // Restore native bridge property
-                self.zygisk.lock().unwrap().restore_prop();
+                self.zygisk.lock().restore_prop();
 
                 client.write_pod(&0).log_ok();
 
@@ -129,7 +130,7 @@ impl MagiskD {
                 self.prune_su_access();
                 scan_deny_apps();
                 if self.zygisk_enabled.load(Ordering::Relaxed) {
-                    self.zygisk.lock().unwrap().reset(false);
+                    self.zygisk.lock().reset(false);
                 }
             }
             RequestCode::SQLITE_CMD => {
@@ -175,16 +176,6 @@ impl MagiskD {
         true
     }
 
-    fn is_selinux_enforced(&self) -> bool {
-        if let Ok(mut file) = cstr!("/sys/fs/selinux/enforce").open(OFlag::O_RDONLY) {
-            let mut buf = [0u8; 1];
-            if file.read_exact(&mut buf).is_ok() {
-                return buf[0] != b'0';
-            }
-        }
-        false
-    }
-
     fn handle_requests(&'static self, mut client: UnixStream) {
         let Ok(cred) = client.peer_cred() else {
             // Client died
@@ -207,7 +198,7 @@ impl MagiskD {
 
         let is_root = cred.uid == 0;
         let is_shell = cred.uid == 2000;
-        let is_zygote = &context == "u:r:zygote:s0" || !self.is_selinux_enforced();
+        let is_zygote = &context == "u:r:zygote:s0";
 
         if !is_root && !is_zygote && !self.is_client(cred.pid.unwrap_or(-1)) {
             // Unsupported client state

@@ -1,9 +1,11 @@
-#![feature(try_blocks)]
 #![feature(fn_traits)]
 #![feature(unix_socket_ancillary_data)]
 #![feature(unix_socket_peek)]
 #![feature(default_field_values)]
 #![feature(peer_credentials_unix_socket)]
+#![feature(sync_nonpoison)]
+#![feature(nonpoison_mutex)]
+#![feature(nonpoison_condvar)]
 #![allow(clippy::missing_safety_doc)]
 
 use crate::ffi::SuRequest;
@@ -148,8 +150,6 @@ pub mod ffi {
         fn resolve_preinit_dir(base_dir: Utf8CStrRef) -> String;
         fn check_key_combo() -> bool;
         fn unlock_blocks();
-        fn mount_sbin() -> i32;
-        fn tmpfs_mount(from: Utf8CStrRef, to: Utf8CStrRef) -> i32;
         fn update_deny_flags(uid: i32, process: &str, flags: &mut u32);
         fn initialize_denylist();
         fn switch_mnt_ns(pid: i32) -> i32;

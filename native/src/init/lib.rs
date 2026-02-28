@@ -1,4 +1,3 @@
-#![feature(try_blocks)]
 #![allow(clippy::missing_safety_doc)]
 
 use logging::setup_klog;
@@ -6,10 +5,6 @@ use logging::setup_klog;
 pub use magiskpolicy;
 use mount::{is_device_mounted, switch_root};
 use rootdir::{OverlayAttr, inject_magisk_rc};
-
-use std::ffi::CStr;
-use base::{libc::c_char, Utf8CStr};
-use magiskpolicy::ffi::SePolicy;
 
 #[path = "../include/consts.rs"]
 mod consts;
@@ -39,6 +34,7 @@ pub mod ffi {
         fstab_suffix: [c_char; 32],
         hardware: [c_char; 32],
         hardware_plat: [c_char; 32],
+        boot_mode: [c_char; 16],
         partition_map: Vec<KeyValue>,
     }
 
@@ -72,7 +68,6 @@ pub mod ffi {
         fn inject_magisk_rc(fd: i32, tmp_dir: Utf8CStrRef);
         fn switch_root(path: Utf8CStrRef);
         fn is_device_mounted(dev: u64, target: Pin<&mut CxxString>) -> bool;
-        unsafe fn patch_sepol(input: *const c_char, output: *const c_char) -> i32;
     }
 
     // BootConfig
@@ -105,57 +100,5 @@ pub mod ffi {
         fn mount_preinit_dir(self: &mut MagiskInit);
         unsafe fn find_block(self: &MagiskInit, partname: *const c_char) -> u64;
         unsafe fn patch_fissiond(self: &mut MagiskInit, tmp_path: *const c_char);
-    }
-}
-
-// Rust implementation of patch_sepol function
-unsafe fn patch_sepol(input: *const c_char, output: *const c_char) -> i32 {
-    let input_cstr = match CStr::from_ptr(input).to_str() {
-        Ok(path) => path,
-        Err(_) => return 1,
-    };
-
-    let output_cstr = match CStr::from_ptr(output).to_str() {
-        Ok(path) => path,
-        Err(_) => return 1,
-    };
-
-    // Convert to Utf8CStr for the from_file function
-    // First convert &str to CString, then to CStr, then to Utf8CStr
-    let input_cstring = match std::ffi::CString::new(input_cstr) {
-        Ok(cstring) => cstring,
-        Err(_) => return 1,
-    };
-
-    let output_cstring = match std::ffi::CString::new(output_cstr) {
-        Ok(cstring) => cstring,
-        Err(_) => return 1,
-    };
-
-    let input_utf8cstr = match Utf8CStr::from_cstr(&input_cstring) {
-        Ok(cstr) => cstr,
-        Err(_) => return 1,
-    };
-
-    let output_utf8cstr = match Utf8CStr::from_cstr(&output_cstring) {
-        Ok(cstr) => cstr,
-        Err(_) => return 1,
-    };
-
-    // from_file returns SePolicy directly, similar to C++ unique_ptr<sepolicy>
-    let mut sepol = SePolicy::from_file(input_utf8cstr);
-
-    // In C++, we check if (!sepol) return 1;
-    // For Rust, we need to check if the policy loaded successfully
-    // The SePolicy struct should have a way to check validity, but let's proceed
-    // and let the to_file method handle any errors
-
-    sepol.magisk_rules();
-
-    // to_file returns bool, matching C++ behavior
-    if sepol.to_file(output_utf8cstr) {
-        0
-    } else {
-        2
     }
 }

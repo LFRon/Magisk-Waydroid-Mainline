@@ -71,9 +71,6 @@ class FlashViewModel : BaseViewModel() {
                     else
                         MagiskInstaller.Direct(outItems, logItems).exec()
                 }
-                Const.Value.FLASH_MAGISK_SYSTEM -> {
-                    MagiskInstaller.Direct_system(outItems, logItems).exec()
-                }
                 Const.Value.FLASH_INACTIVE_SLOT -> {
                     showReboot = false
                     MagiskInstaller.SecondSlot(outItems, logItems).exec()

@@ -1,5 +1,5 @@
 use crate::ffi::{BootConfig, MagiskInit, backup_init, magisk_proxy_main};
-use crate::{logging::setup_klog, patch_sepol};
+use crate::logging::setup_klog;
 use crate::mount::is_rootfs;
 use crate::twostage::hexpatch_init_for_second_stage;
 use base::libc::{basename, getpid, mount, umask};
@@ -24,6 +24,7 @@ impl MagiskInit {
                 fstab_suffix: [0; 32],
                 hardware: [0; 32],
                 hardware_plat: [0; 32],
+                boot_mode: [0; 16],
                 partition_map: Vec::new(),
             },
         }
@@ -87,8 +88,8 @@ impl MagiskInit {
         self.patch_rw_root();
     }
 
-    fn recovery(&self) {
-        info!("Ramdisk is recovery, abort");
+    fn recovery_or_charger(&self) {
+        info!("Charger mode or ramdisk is recovery, abort");
         self.restore_ramdisk_init();
         cstr!("/.backup").remove_all().ok();
     }
@@ -151,8 +152,11 @@ impl MagiskInit {
             self.legacy_system_as_root();
         } else if self.config.force_normal_boot {
             self.first_stage();
-        } else if cstr!("/sbin/recovery").exists() || cstr!("/system/bin/recovery").exists() {
-            self.recovery();
+        } else if cstr!("/sbin/recovery").exists()
+            || cstr!("/system/bin/recovery").exists()
+            || unsafe { CStr::from_ptr(self.config.boot_mode.as_ptr()) } == c"charger"
+        {
+            self.recovery_or_charger();
         } else if self.check_two_stage() {
             self.first_stage();
         } else {
@@ -179,20 +183,6 @@ pub unsafe extern "C" fn main(
 
         if CStr::from_ptr(name) == c"magisk" {
             return magisk_proxy_main(argc, argv);
-        }
-
-        // Handle --patch-sepol argument
-        if argc > 2 {
-            let arg1 = *argv.offset(1);
-            if !arg1.is_null() && CStr::from_ptr(arg1) == c"--patch-sepol" {
-                let input = *argv.offset(2);
-                let output = if argc > 3 {
-                    *argv.offset(3)
-                } else {
-                    input // Use input as output if no output specified
-                };
-                return patch_sepol(input, output);
-            }
         }
 
         if getpid() == 1 {
